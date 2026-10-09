@@ -1,0 +1,56 @@
+name: hr-copilot
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: hr_copilot
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+    ports:
+      - "${DB_HOST_PORT:-5440}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hr_copilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      # Runtime traffic uses the restricted role, so RLS is enforced.
+      DATABASE_URL: postgresql+asyncpg://hr_app:${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}@db:5432/hr_copilot
+      # Migrations and seeding use the owner role.
+      MIGRATION_DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/hr_copilot
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      ENVIRONMENT: local
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build: ./frontend
+    environment:
+      # Server-side calls from the Next.js BFF to the API, over the compose network.
+      API_BASE_URL: http://backend:8000
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
