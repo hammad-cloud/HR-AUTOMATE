@@ -1,0 +1,29 @@
+# Production-like overlay for performance runs.
+#
+#   docker compose -f docker-compose.yml -f perf/docker-compose.perf.yml up -d db backend
+#   docker compose -f docker-compose.yml -f perf/docker-compose.perf.yml run --rm k6 run k6/smoke.js
+#
+# The default stack runs uvicorn with --reload and one process, which is right for
+# development and wrong for measuring throughput. Here the API runs without the reloader,
+# with several worker processes, the way the production image would be deployed.
+services:
+  backend:
+    environment:
+      LOG_LEVEL: WARNING # per-request INFO logging would dominate the measurement
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-server-header
+             --workers ${API_WORKERS:-4} --no-access-log"
+
+  k6:
+    image: grafana/k6:1.0.0
+    profiles: ["perf"]
+    depends_on:
+      - backend
+    working_dir: /perf
+    environment:
+      BASE_URL: http://backend:8000
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?set DEMO_PASSWORD in .env}
+      K6_NO_USAGE_REPORT: "true"
+    volumes:
+      - ./perf:/perf
