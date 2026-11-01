@@ -8,6 +8,7 @@ class ErrorCode(StrEnum):
     VALIDATION_ERROR = "VALIDATION_ERROR"
     BUSINESS_RULE_VIOLATION = "BUSINESS_RULE_VIOLATION"
     CONFLICT = "CONFLICT"
+    TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -47,3 +48,12 @@ class BusinessRuleError(AppError):
 class ConflictError(AppError):
     status_code = 409
     code = ErrorCode.CONFLICT
+
+
+class TooManyRequestsError(AppError):
+    status_code = 429
+    code = ErrorCode.TOO_MANY_REQUESTS
+
+    def __init__(self, message: str, retry_after: int) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

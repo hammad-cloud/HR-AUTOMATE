@@ -12,7 +12,12 @@ from sqlalchemy import text
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.context import RequestContext
-from app.core.exceptions import AppError, ErrorCode, PermissionDeniedError
+from app.core.exceptions import (
+    AppError,
+    ErrorCode,
+    PermissionDeniedError,
+    TooManyRequestsError,
+)
 from app.core.logging import configure_logging, request_id_var
 from app.core.security_headers import apply_security_headers
 from app.db.session import engine
@@ -92,7 +97,10 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
-        return _error(exc.status_code, exc.code, exc.message)
+        response = _error(exc.status_code, exc.code, exc.message)
+        if isinstance(exc, TooManyRequestsError):
+            response.headers["Retry-After"] = str(exc.retry_after)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation(_: Request, exc: RequestValidationError) -> JSONResponse:
