@@ -26,3 +26,13 @@ next-env.d.ts
 Thumbs.db
 .vscode/
 .idea/
+
+# Build artifacts
+build/
+dist/
+
+# Test and performance run output
+perf/results/*
+!perf/results/.gitkeep
+security/reports/*
+!security/reports/.gitkeep
