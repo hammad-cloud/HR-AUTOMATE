@@ -69,7 +69,7 @@ export function ChangePasswordForm() {
             value={next}
             onChange={(e) => setNext(e.target.value)}
             minLength={MIN_LENGTH}
-            maxLength={128}
+            maxLength={72}
             aria-describedby="new-password-hint"
             required
           />
@@ -89,7 +89,7 @@ export function ChangePasswordForm() {
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            maxLength={128}
+            maxLength={72}
             aria-invalid={mismatch}
             aria-describedby="confirm-password-hint"
             required

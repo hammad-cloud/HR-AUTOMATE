@@ -8,13 +8,23 @@ from app.core.config import get_settings
 from app.core.context import RequestContext, Role
 from app.core.exceptions import UnauthenticatedError
 
+# bcrypt only reads the first 72 bytes and, from bcrypt 5, raises on anything longer.
+BCRYPT_MAX_BYTES = 72
+
 
 def hash_password(password: str) -> str:
+    # New passwords are capped at the schema layer (NewPassword), so this never truncates.
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return bcrypt.checkpw(password.encode(), password_hash.encode())
+    candidate = password.encode()
+    if len(candidate) > BCRYPT_MAX_BYTES:
+        # No stored password can be this long, so it cannot match. Still run one bcrypt
+        # round so the response time does not reveal the length check.
+        bcrypt.checkpw(candidate[:BCRYPT_MAX_BYTES], password_hash.encode())
+        return False
+    return bcrypt.checkpw(candidate, password_hash.encode())
 
 
 def create_access_token(ctx: RequestContext) -> str:

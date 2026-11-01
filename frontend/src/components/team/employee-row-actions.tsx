@@ -198,7 +198,7 @@ function ResetPasswordDialog({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   minLength={8}
-                  maxLength={128}
+                  maxLength={72}
                   autoComplete="new-password"
                   required
                 />

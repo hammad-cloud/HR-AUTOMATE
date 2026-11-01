@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 
 from app.core.context import Role
-from app.schemas.common import APIModel
+from app.schemas.common import APIModel, NewPassword
 
 
 class EmployeeSummary(APIModel):
@@ -57,7 +57,7 @@ class CreateEmployeeRequest(BaseModel):
     national_id: str = Field(pattern=r"^\d{5}-\d{7}-\d$", description="CNIC, e.g. 35202-1234567-1")
     role: AssignableRole = Role.EMPLOYEE
     # Initial password, shared with the new hire out of band.
-    password: str = Field(min_length=8, max_length=128)
+    password: NewPassword
 
     @field_validator("email")
     @classmethod
@@ -91,7 +91,7 @@ class UpdateEmployeeRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     # Temporary password HR shares out of band; the employee then changes it themselves.
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: NewPassword
 
 
 class LeaveTypeOut(APIModel):

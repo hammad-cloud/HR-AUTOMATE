@@ -3,7 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.context import Role
-from app.schemas.common import APIModel
+from app.schemas.common import APIModel, NewPassword
 
 
 class LoginRequest(BaseModel):
@@ -15,7 +15,7 @@ class LoginRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
+    new_password: NewPassword
 
     @model_validator(mode="after")
     def _must_differ(self) -> "ChangePasswordRequest":
