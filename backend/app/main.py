@@ -18,6 +18,7 @@ from app.core.exceptions import (
     PermissionDeniedError,
     TooManyRequestsError,
 )
+from app.core.input_guard import has_nul_input
 from app.core.logging import configure_logging, request_id_var
 from app.core.security_headers import apply_security_headers
 from app.db.session import engine
@@ -61,7 +62,12 @@ def create_app() -> FastAPI:
         token = request_id_var.set(request_id)
         started = time.perf_counter()
         try:
-            response = await call_next(request)
+            if await has_nul_input(request):
+                response: Response = _error(
+                    422, ErrorCode.VALIDATION_ERROR, "Input must not contain NUL characters"
+                )
+            else:
+                response = await call_next(request)
             elapsed_ms = round((time.perf_counter() - started) * 1000)
             response.headers["x-request-id"] = request_id
             apply_security_headers(response.headers, request.url.path, https_only=https_only)

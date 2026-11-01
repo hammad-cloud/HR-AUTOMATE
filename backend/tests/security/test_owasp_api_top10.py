@@ -218,7 +218,8 @@ SQLI_PAYLOADS = [
     "'; DROP TABLE employees; --",
     '" OR ""="',
     "%' UNION SELECT password_hash FROM users --",
-    "\\x00",
+    "1 OR 1=1",
+    "1; SELECT pg_sleep(5) --",
 ]
 
 
