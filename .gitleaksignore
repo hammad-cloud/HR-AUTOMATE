@@ -1,0 +1,4 @@
+# Reviewed false positives (gitleaks fingerprints: commit:file:rule:line).
+# auth_service.py:87 is the audit tool name tool="change_password", not a credential.
+fb741eb7b254cf84d3b64893a84073d352c48830:backend/app/services/auth_service.py:generic-api-key:87
+fb741eb7b254cf84d3b64893a84073d352c48830:backend/build/lib/app/services/auth_service.py:generic-api-key:87

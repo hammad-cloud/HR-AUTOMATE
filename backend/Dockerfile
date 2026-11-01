@@ -10,7 +10,8 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY app/__init__.py app/__init__.py
-RUN pip install ".[dev]"
+# Upgrade pip itself first: the base image ships a pip with published CVEs (pip-audit).
+RUN pip install --upgrade pip && pip install ".[dev]"
 
 COPY . .
 

@@ -1,0 +1,3 @@
+10049	IGNORE	(Non-Storable / Storable Content - informational; /api is no-store by design)
+10104	IGNORE	(User Agent Fuzzer - informational)
+90004	IGNORE	(Spectre site isolation - COOP/CORP already set; COEP not applicable to a JSON API)
