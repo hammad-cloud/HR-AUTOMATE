@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.context import RequestContext
 from app.core.exceptions import AppError, ErrorCode, PermissionDeniedError
 from app.core.logging import configure_logging, request_id_var
+from app.core.security_headers import apply_security_headers
 from app.db.session import engine
 from app.services import audit_service
 
@@ -30,6 +31,7 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
+    https_only = settings.environment in ("staging", "production")
 
     app = FastAPI(
         title=settings.app_name,
@@ -57,6 +59,7 @@ def create_app() -> FastAPI:
             response = await call_next(request)
             elapsed_ms = round((time.perf_counter() - started) * 1000)
             response.headers["x-request-id"] = request_id
+            apply_security_headers(response.headers, request.url.path, https_only=https_only)
             logger.info(
                 "%s %s -> %s in %sms",
                 request.method,
