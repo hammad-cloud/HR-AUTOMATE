@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend - lint, tests, security suite, SAST, deps, perf smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create throwaway .env for CI
+        run: |
+          rand() { python3 -c "import secrets; print(secrets.token_urlsafe(32))"; }
+          {
+            echo "POSTGRES_PASSWORD=$(rand)"
+            echo "APP_DB_PASSWORD=$(rand)"
+            echo "DB_HOST_PORT=5440"
+            echo "JWT_SECRET=$(rand)$(rand)"
+            echo "DEMO_PASSWORD=Ci-$(rand)"
+          } > .env
+
+      - name: Start database and API
+        run: |
+          docker compose up -d --build --wait db backend
+          docker compose exec -T -u root backend chown -R appuser /app
+          for i in $(seq 1 30); do curl -sf localhost:8000/health/ready && break; sleep 2; done
+
+      - name: Seed demo data
+        run: docker compose exec -T backend python -m app.seed.seed
+
+      - name: Lint and format (ruff)
+        run: |
+          docker compose exec -T backend ruff check app tests
+          docker compose exec -T backend ruff format --check app tests
+
+      - name: Unit + integration tests with coverage
+        run: docker compose exec -T backend pytest -m "not security" --cov=app --cov-report=term-missing:skip-covered
+
+      - name: Security tests (OWASP API Top 10)
+        run: docker compose exec -T backend pytest -m security -q
+
+      - name: SAST and dependency audit
+        run: ./security/run-scans.sh sast && docker compose exec -T backend pip-audit --skip-editable
+
+      - name: Performance smoke (k6)
+        run: |
+          docker compose -f docker-compose.yml -f perf/docker-compose.perf.yml --profile perf \
+            run --rm --no-deps k6 run k6/smoke.js
+
+      - name: API logs on failure
+        if: failure()
+        run: docker compose logs backend --tail 200
+
+  frontend:
+    name: Frontend - lint, types, build, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks over full history
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 git /repo \
+            --no-banner --redact --gitleaks-ignore-path /repo/.gitleaksignore
